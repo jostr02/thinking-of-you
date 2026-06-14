@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>parser tests</title>
+  <style>
+    body { font-family: monospace; background: #0a0a14; color: #e9e9f5; padding: 24px; }
+    .pass { color: #6ee7a0; }
+    .fail { color: #ff8a8a; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <h1>parser.js tests</h1>
+  <div id="out"></div>
+
+  <script src="parser.js"></script>
+  <script>
+    var out = document.getElementById("out");
+    var fails = 0;
+    function p(n) { return String(n).padStart(2, "0"); }
+    function f(d) {
+      return d.getFullYear() + "-" + p(d.getMonth() + 1) + "-" + p(d.getDate()) +
+        " " + p(d.getHours()) + ":" + p(d.getMinutes());
+    }
+    function assert(name, cond, detail) {
+      var div = document.createElement("div");
+      div.className = cond ? "pass" : "fail";
+      div.textContent = (cond ? "PASS  " : "FAIL  ") + name + (detail ? "  [" + detail + "]" : "");
+      out.appendChild(div);
+      if (!cond) fails++;
+    }
+
+    fetch("times.txt").then(function (r) { return r.text(); }).then(function (raw) {
+      var e = window.parseTimes(raw);
+
+      function byNote(s) { return e.find(function (x) { return x.note.indexOf(s) === 0; }); }
+
+      assert("entry count is 1202", e.length === 1202, e.length);
+      assert("first entry = 2026-01-01 00:00", f(e[0].datetime) === "2026-01-01 00:00", f(e[0].datetime));
+      assert("last entry on 2026-06-13", f(e[e.length - 1].datetime).slice(0, 10) === "2026-06-13", f(e[e.length - 1].datetime));
+      assert("seg1 5:04 resolves to PM (17:04 Jan 1)", f(e[8].datetime) === "2026-01-01 17:04", f(e[8].datetime));
+      assert("first 'goodnight :)' = 2026-01-03 02:29", f(byNote("goodnight :)").datetime) === "2026-01-03 02:29");
+      assert("'late start to my saturday' is PM (13:51)", f(e[104].datetime) === "2026-01-10 13:51", f(e[104].datetime));
+
+      // PM-start days (auto-corrected): each should land in the afternoon/evening
+      assert("Valentine's 'haven't had the chance' = Feb 14 15:27",
+        f(byNote("I haven’t had the chance to do this all day").datetime) === "2026-02-14 15:27");
+      assert("'five whole months' = May 3 22:24",
+        f(byNote("five whole months").datetime) === "2026-05-03 22:24");
+      // explicit "9:27 pm" override -> the 10:38 after it is PM
+      assert("Mar 7 'again it was so nice' = 22:38 (after 9:27 pm override)",
+        f(byNote("again it was so nice seeing you today").datetime) === "2026-03-07 22:38");
+
+      var mono = true, prev = 0;
+      for (var i = 0; i < e.length; i++) { if (e[i].datetime.getTime() < prev) mono = false; prev = e[i].datetime.getTime(); }
+      assert("times are monotonically increasing", mono);
+
+      var days = {};
+      e.forEach(function (x) { days[f(x.datetime).slice(0, 10)] = 1; });
+      assert("164 distinct calendar days", Object.keys(days).length === 164, Object.keys(days).length);
+
+      var blue = e.filter(function (x) { return x.type === "blue"; }).length;
+      assert("note entries detected (>250 blue)", blue > 250, blue + " blue");
+
+      var summary = document.createElement("h2");
+      summary.className = fails ? "fail" : "pass";
+      summary.textContent = fails ? (fails + " test(s) FAILED") : "all tests passed";
+      out.appendChild(summary);
+    });
+  </script>
+</body>
+</html>
