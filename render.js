@@ -214,17 +214,44 @@
     }
   });
 
+  // photos from images.json (built by tools/build-images.js) -> image entries.
+  // Missing/empty manifest is fine; it just means no photo dots yet.
+  function loadImageEntries() {
+    return fetch("images.json")
+      .then(function (r) { return r.ok ? r.json() : []; })
+      .catch(function () { return []; })
+      .then(function (list) {
+        if (!Array.isArray(list)) return [];
+        return list.map(function (p) {
+          var dt = new Date(p.y, p.mo - 1, p.d, p.h, p.mi, 0, 0);
+          return {
+            date: new Date(p.y, p.mo - 1, p.d, 0, 0, 0, 0),
+            datetime: dt,
+            hh: dt.getHours(),
+            mm: dt.getMinutes(),
+            note: "",
+            type: "image",
+            img: p.file,
+            caption: p.caption || "",
+          };
+        });
+      });
+  }
+
   // ---- boot ---------------------------------------------------------------
 
-  fetch("times.txt")
-    .then(function (r) {
-      if (!r.ok) throw new Error("could not load times.txt (" + r.status + ")");
-      return r.text();
-    })
-    .then(function (raw) {
-      var entries = window.parseTimes(raw);
-      setCounter(entries);
-      buildTimeline(entries, document.getElementById("timeline"));
+  var timesPromise = fetch("times.txt").then(function (r) {
+    if (!r.ok) throw new Error("could not load times.txt (" + r.status + ")");
+    return r.text();
+  });
+
+  Promise.all([timesPromise, loadImageEntries()])
+    .then(function (res) {
+      var entries = window.parseTimes(res[0]);
+      setCounter(entries); // nickel counts thoughts, not photos
+      var all = entries.concat(res[1]);
+      all.sort(function (a, b) { return a.datetime - b.datetime; });
+      buildTimeline(all, document.getElementById("timeline"));
     })
     .catch(function (err) {
       var t = document.getElementById("timeline");
