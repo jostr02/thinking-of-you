@@ -35,9 +35,9 @@
 
       function byNote(s) { return e.find(function (x) { return x.note.indexOf(s) === 0; }); }
 
-      assert("entry count is 1202", e.length === 1202, e.length);
+      assert("entry count is 1486", e.length === 1486, e.length);
       assert("first entry = 2026-01-01 00:00", f(e[0].datetime) === "2026-01-01 00:00", f(e[0].datetime));
-      assert("last entry on 2026-06-13", f(e[e.length - 1].datetime).slice(0, 10) === "2026-06-13", f(e[e.length - 1].datetime));
+      assert("last entry = 2026-07-26 11:11", f(e[e.length - 1].datetime) === "2026-07-26 11:11", f(e[e.length - 1].datetime));
       assert("seg1 5:04 resolves to PM (17:04 Jan 1)", f(e[8].datetime) === "2026-01-01 17:04", f(e[8].datetime));
       assert("first 'goodnight :)' = 2026-01-03 02:29", f(byNote("goodnight :)").datetime) === "2026-01-03 02:29");
       assert("'late start to my saturday' is PM (13:51)", f(e[104].datetime) === "2026-01-10 13:51", f(e[104].datetime));
@@ -51,13 +51,27 @@
       assert("Mar 7 'again it was so nice' = 22:38 (after 9:27 pm override)",
         f(byNote("again it was so nice seeing you today").datetime) === "2026-03-07 22:38");
 
+      // second half of the year
+      assert("birthday message = Jun 14 00:01",
+        f(byNote("Happy Birthday").datetime) === "2026-06-14 00:01");
+      assert("'seven months hooray' = Jul 3 00:43",
+        f(byNote("seven months hooray").datetime) === "2026-07-03 00:43");
+      // the two 11:11 wishes really are back to back: 11:11pm then 11:11am
+      assert("'hehe wish time' = Jul 13 23:11",
+        f(byNote("hehe wish time").datetime) === "2026-07-13 23:11");
+      assert("'back to back wishes' = Jul 14 11:11",
+        f(byNote("back to back wishes").datetime) === "2026-07-14 11:11");
+      // 12:00 -> 1:00 -> 2:00 must read as noon, 1pm, 2pm for the joke to land
+      assert("'exactly on the hour mark' = Jul 25 13:00",
+        f(byNote("exactly on the hour mark").datetime) === "2026-07-25 13:00");
+
       var mono = true, prev = 0;
       for (var i = 0; i < e.length; i++) { if (e[i].datetime.getTime() < prev) mono = false; prev = e[i].datetime.getTime(); }
       assert("times are monotonically increasing", mono);
 
       var days = {};
       e.forEach(function (x) { days[f(x.datetime).slice(0, 10)] = 1; });
-      assert("164 distinct calendar days", Object.keys(days).length === 164, Object.keys(days).length);
+      assert("207 distinct calendar days", Object.keys(days).length === 207, Object.keys(days).length);
 
       var blue = e.filter(function (x) { return x.type === "blue"; }).length;
       assert("note entries detected (>250 blue)", blue > 250, blue + " blue");
